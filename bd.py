@@ -4,10 +4,16 @@ class bd:
     def __init__(self):
         self.cliente = MongoClient("mongodb://localhost:27017/")
         self.db = self.cliente["comerciotech"]
+        self.admin = self.db["admin"]
         self.clientes = self.db["clientes"]
         self.productos = self.db["productos"]
         self.pedidos = self.db["pedidos"]
 
+    # Verificar Admin
+    def verificar_admin(self, usuario, contrasenia):
+        admin = self.db["admin"].find_one({"usuario": usuario, "contrasenia": contrasenia})
+        return admin is not None
+        
     # CRUD CLIENTES
 
     def insertar_cliente(self, cliente):
@@ -65,4 +71,4 @@ class bd:
             {"_id": pedido_id}
         )
 
-        
+

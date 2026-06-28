@@ -16,7 +16,24 @@ class bd:
         
     # CRUD CLIENTES
 
+    def obtener_siguiente_cliente_id(self):
+        ultimo_cliente = self.clientes.find_one(sort=[("cliente_id", -1)])
+        if not ultimo_cliente or "cliente_id" not in ultimo_cliente:
+            return 1
+        try:
+            return int(ultimo_cliente["cliente_id"]) + 1
+        except (ValueError, TypeError):
+            return 1
+
     def insertar_cliente(self, cliente):
+        if "cliente_id" not in cliente or cliente["cliente_id"] in (None, ""):
+            cliente["cliente_id"] = self.obtener_siguiente_cliente_id()
+        else:
+            try:
+                cliente["cliente_id"] = int(cliente["cliente_id"])
+            except (ValueError, TypeError):
+                cliente["cliente_id"] = self.obtener_siguiente_cliente_id()
+
         self.clientes.insert_one(cliente)
 
     def mostrar_clientes(self):
@@ -24,14 +41,27 @@ class bd:
     
     def actualizar_cliente(self, rut, direccion):
         self.clientes.update_one(
-            {"rut": rut},
+            {"rut_cliente": rut},
             {"$set": {"direccion": direccion}}
-            )
+        )
+
+    def editar_cliente(self, rut, cliente):
+        self.clientes.update_one(
+            {"rut_cliente": rut},
+            {"$set": cliente}
+        )
 
     def eliminar_cliente(self, rut):
         self.clientes.delete_one(
-            {"rut": rut}
-            ) 
+            {"rut_cliente": rut}
+        )
+
+    def contar_pedidos_cliente(self, cliente_id):
+        return self.pedidos.count_documents({"cliente_id": cliente_id})
+
+    def eliminar_cliente_con_pedidos(self, rut_cliente, cliente_id):
+        self.clientes.delete_one({"rut_cliente": rut_cliente})
+        return self.pedidos.delete_many({"cliente_id": cliente_id}).deleted_count
         
     # CRUD PRODUCTOS
 
@@ -43,14 +73,20 @@ class bd:
     
     def actualizar_stock(self, producto_id, stock):
         self.productos.update_one(
-            {"_id": producto_id},
+            {"producto_id": producto_id},
             {"$set": {"stock": stock}}
-            )
+        )
         
+    def editar_producto(self, producto_id, producto):
+        self.productos.update_one(
+            {"producto_id": producto_id},
+            {"$set": producto}
+        )
+
     def eliminar_producto(self, producto_id):
         self.productos.delete_one(
-            {"_id": producto_id}
-            )
+            {"producto_id": producto_id}
+        )
         
     # CRUD PEDIDOS
 
@@ -62,13 +98,19 @@ class bd:
 
     def actualizar_total(self, pedido_id, total):
         self.pedidos.update_one(
-            {"_id": pedido_id},
-            {"$set": {"total": total}}
-            )
+            {"pedido_id": pedido_id},
+            {"$set": {"monto_total": total}}
+        )
+
+    def editar_pedido(self, pedido_id, pedido):
+        self.pedidos.update_one(
+            {"pedido_id": pedido_id},
+            {"$set": pedido}
+        )
 
     def eliminar_pedido(self, pedido_id):
         self.pedidos.delete_one(
-            {"_id": pedido_id}
+            {"pedido_id": pedido_id}
         )
 
 

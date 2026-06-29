@@ -2,17 +2,20 @@ from pymongo import MongoClient
 
 class bd:
     def __init__(self):
-        self.cliente = MongoClient("mongodb://localhost:27017/")
-        self.db = self.cliente["comerciotech"]
+        self.cliente = MongoClient("mongodb://localhost:27017")
+        self.db = self.cliente["comercioTech"]
         self.admin = self.db["admin"]
         self.clientes = self.db["clientes"]
         self.productos = self.db["productos"]
         self.pedidos = self.db["pedidos"]
 
     # Verificar Admin
+    def buscar_admin_por_usuario(self, usuario):
+        return self.db["admin"].find_one({"usuario": usuario})
+
     def verificar_admin(self, usuario, contrasenia):
-        admin = self.db["admin"].find_one({"usuario": usuario, "contrasenia": contrasenia})
-        return admin is not None
+        admin = self.buscar_admin_por_usuario(usuario)
+        return admin is not None and admin.get("contrasenia") == contrasenia
         
     # CRUD CLIENTES
 
@@ -91,7 +94,24 @@ class bd:
     # CRUD PEDIDOS
 
     def insertar_pedido(self, pedido):
+        # asignar pedido_id si no viene
+        if "pedido_id" not in pedido or pedido["pedido_id"] in (None, ""):
+            pedido["pedido_id"] = self.obtener_siguiente_pedido_id()
+        else:
+            try:
+                pedido["pedido_id"] = int(pedido["pedido_id"])
+            except (ValueError, TypeError):
+                pedido["pedido_id"] = self.obtener_siguiente_pedido_id()
         self.pedidos.insert_one(pedido)
+
+    def obtener_siguiente_pedido_id(self):
+        ultimo_pedido = self.pedidos.find_one(sort=[("pedido_id", -1)])
+        if not ultimo_pedido or "pedido_id" not in ultimo_pedido:
+            return 1
+        try:
+            return int(ultimo_pedido["pedido_id"]) + 1
+        except (ValueError, TypeError):
+            return 1
 
     def mostrar_pedidos(self):
         return list(self.pedidos.find())

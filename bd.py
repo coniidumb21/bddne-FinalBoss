@@ -1,21 +1,103 @@
+import datetime
+import json
+import os
+import subprocess
+
+from cryptography.fernet import Fernet
 from pymongo import MongoClient
 
 class bd:
+    KEY_FILE = "secret.key"
+    CREDENTIALS_FILE = "credentials.enc"
+
     def __init__(self):
-        self.cliente = MongoClient("mongodb://localhost:27017")
+        self.base_path = os.path.abspath(os.path.dirname(__file__))
+        self.key_path = os.path.join(self.base_path, self.KEY_FILE)
+        self.credentials_path = os.path.join(self.base_path, self.CREDENTIALS_FILE)
+        self.key = self._load_or_create_key()
+        self.usuario, self.contrasenia = self._load_or_create_credentials()
+        self.uri = f"mongodb://{self.usuario}:{self.contrasenia}@localhost:27017/?authSource=admin"
+        self.cliente = MongoClient(self.uri)
         self.db = self.cliente["comercioTech"]
         self.admin = self.db["admin"]
         self.clientes = self.db["clientes"]
         self.productos = self.db["productos"]
         self.pedidos = self.db["pedidos"]
 
+    def _load_or_create_key(self):
+        if os.path.exists(self.key_path):
+            with open(self.key_path, "rb") as key_file:
+                return key_file.read()
+        key = Fernet.generate_key()
+        with open(self.key_path, "wb") as key_file:
+            key_file.write(key)
+        return key
+
+    def _encrypt_text(self, texto):
+        f = Fernet(self.key)
+        return f.encrypt(texto.encode()).decode()
+
+    def _decrypt_text(self, texto_encriptado):
+        f = Fernet(self.key)
+        return f.decrypt(texto_encriptado.encode()).decode()
+
+    def _load_or_create_credentials(self):
+        if os.path.exists(self.credentials_path):
+            with open(self.credentials_path, "r", encoding="utf-8") as cred_file:
+                data = json.load(cred_file)
+            return (
+                self._decrypt_text(data["usuario"]),
+                self._decrypt_text(data["contrasenia"]),
+            )
+
+        default_usuario = "administrador"
+        default_contrasenia = "123456"
+        data = {
+            "usuario": self._encrypt_text(default_usuario),
+            "contrasenia": self._encrypt_text(default_contrasenia),
+        }
+        with open(self.credentials_path, "w", encoding="utf-8") as cred_file:
+            json.dump(data, cred_file)
+        return default_usuario, default_contrasenia
+
     # Verificar Admin
     def buscar_admin_por_usuario(self, usuario):
         return self.db["admin"].find_one({"usuario": usuario})
 
     def verificar_admin(self, usuario, contrasenia):
-        admin = self.buscar_admin_por_usuario(usuario)
-        return admin is not None and admin.get("contrasenia") == contrasenia
+        uri = f"mongodb://{usuario}:{contrasenia}@localhost:27017/?authSource=admin"
+        try:
+            cliente_temporal = MongoClient(uri, serverSelectionTimeoutMS=3000)
+            cliente_temporal.admin.command("ping")
+            return True
+        except Exception:
+            return False
+
+    def respaldar_datos(self, destino=None):
+        if destino is None:
+            backup_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), "backups")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            destino = os.path.join(backup_root, f"backup_{timestamp}")
+
+        os.makedirs(destino, exist_ok=True)
+
+        try:
+            subprocess.run(
+                ["mongodump", "--uri", self.uri, "--out", destino],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except FileNotFoundError as err:
+            raise RuntimeError(
+                "mongodump no está disponible. Instala MongoDB Database Tools y asegúrate de que mongodump esté en el PATH."
+            ) from err
+        except subprocess.CalledProcessError as err:
+            raise RuntimeError(
+                f"Error durante mongodump: {err.stderr.strip() if err.stderr else err}"
+            ) from err
+
+        return destino
             
     # CRUD CLIENTES
 

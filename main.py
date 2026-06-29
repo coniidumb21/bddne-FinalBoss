@@ -6,11 +6,14 @@ db = bd()
 def validar_login(usuario, contrasenia):
     usuario = usuario.strip()
     contrasenia = contrasenia.strip()
-    admin = db.buscar_admin_por_usuario(usuario)
-    if admin is None:
+    if not usuario:
         return "user_not_found"
-    if admin.get("contrasenia") != contrasenia:
+    if not contrasenia:
         return "wrong_password"
-    return "ok"
+    if db.verificar_admin(usuario, contrasenia):
+        return "ok"
+    if usuario != db.usuario:
+        return "user_not_found"
+    return "wrong_password"
 
 ejecutar_interfaz(validar_login, db)

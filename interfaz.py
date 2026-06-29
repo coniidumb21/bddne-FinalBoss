@@ -1101,9 +1101,19 @@ def abrir_seccion_admin(callback_login, db):
     btn_pedidos = tk.Button(admin_root, text="Pedidos", command=lambda: seleccionar_tipo("Pedidos"), font=("Arial", 10, "bold"), bg="#d80f69", fg="white", activebackground="#FF66B3", activeforeground="white", relief="flat", cursor="hand2")
     canvas_admin.create_window(705, 86, width=93, height=28, window=btn_pedidos)
 
+    def respaldar_datos():
+        try:
+            destino = db.respaldar_datos()
+            messagebox.showinfo("Respaldo completado", f"Respaldo guardado en:\n{destino}")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo respaldar los datos:\n{e}")
+
     def cerrar_sesion():
         admin_root.destroy()
         ejecutar_interfaz(callback_login, db)
+
+    btn_respaldo = tk.Button(admin_root, text="Respaldar datos", command=respaldar_datos, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", activebackground="#d80f69", relief="flat", cursor="hand2")
+    canvas_admin.create_window(380, 530, width=170, height=36, window=btn_respaldo)
 
     btn_cerrar_sesion = tk.Button(admin_root, text="Cerrar Sesión", command=cerrar_sesion, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", activebackground="#d80f69", relief="flat", cursor="hand2")
     canvas_admin.create_window(560, 530, width=170, height=36, window=btn_cerrar_sesion)

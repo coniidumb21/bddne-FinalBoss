@@ -177,8 +177,46 @@ def abrir_seccion_admin(callback_login, db):
         año, mes, dia = partes
         return año.isdigit() and mes.isdigit() and dia.isdigit() and 1 <= int(mes) <= 12 and 1 <= int(dia) <= 31
 
+    def validar_rut(valor):
+        valor = valor.strip().upper().replace(".", "").replace(" ", "")
+        if not valor:
+            return False
+
+        if "-" not in valor:
+            return False
+
+        cuerpo, dv = valor.rsplit("-", 1)
+
+        if not cuerpo.isdigit() or len(cuerpo) < 2:
+            return False
+        if not (dv.isdigit() or dv == "K"):
+            return False
+
+        total = 0
+        multiplo = 2
+        for digito in reversed(cuerpo):
+            total += int(digito) * multiplo
+            multiplo += 1
+            if multiplo == 8:
+                multiplo = 2
+
+        resto = total % 11
+        resultado = 11 - resto
+        if resultado == 11:
+            esperado = "0"
+        elif resultado == 10:
+            esperado = "K"
+        else:
+            esperado = str(resultado)
+
+        return esperado == dv
+
     def validar_telefono(valor):
-        return len(valor) >= 8 and all(c.isdigit() or c in "+ -()" for c in valor)
+        valor = valor.strip()
+        if not valor:
+            return False
+        digitos = [c for c in valor if c.isdigit()]
+        return len(digitos) >= 8 and all(c.isdigit() or c in "+ -()" for c in valor)
 
     def validar_campos(valores, reglas):
         for campo, reglas_campo in reglas.items():
@@ -191,8 +229,16 @@ def abrir_seccion_admin(callback_login, db):
                 raise ValueError("Ingrese un email válido.")
             if "date" in reglas_campo and valor and not validar_fecha(valor):
                 raise ValueError("Ingrese la fecha en formato AAAA-MM-DD.")
+            if "rut" in reglas_campo and valor and not validar_rut(valor):
+                raise ValueError("Ingrese un RUT válido.")
             if "phone" in reglas_campo and valor and not validar_telefono(valor):
                 raise ValueError("Ingrese un teléfono válido.")
+
+    def obtener_valor_entrada(entry):
+        placeholder = getattr(entry, "_placeholder_text", None)
+        if placeholder and getattr(entry, "_placeholder_active", False):
+            return ""
+        return entry.get().strip()
 
     def obtener_seleccion():
         seleccion = tabla.selection()
@@ -227,6 +273,7 @@ def abrir_seccion_admin(callback_login, db):
                 entrada.delete(0, tk.END)
                 entrada.insert(0, fecha)
                 entrada.config(state="readonly")
+                entrada._placeholder_active = False
                 calendario.destroy()
 
             def mes_anterior():
@@ -288,20 +335,30 @@ def abrir_seccion_admin(callback_login, db):
         def set_placeholder(entry, text):
             default_fg = entry.cget("fg") if entry.cget("fg") else "black"
             had_readonly = (entry.cget('state') == 'readonly')
+            entry._placeholder_text = text
+            entry._placeholder_active = True
             if had_readonly:
                 entry.config(state='normal')
+
             def on_focus_in(event):
                 if entry.get() == text:
                     entry.delete(0, tk.END)
                     entry.config(fg=default_fg)
+                    entry._placeholder_active = False
+
             def on_focus_out(event):
                 if not entry.get():
                     if had_readonly:
                         entry.config(state='normal')
+                    entry.delete(0, tk.END)
                     entry.insert(0, text)
                     entry.config(fg="#a9a9a9")
+                    entry._placeholder_active = True
                     if had_readonly:
                         entry.config(state='readonly')
+                else:
+                    entry._placeholder_active = False
+
             entry.delete(0, tk.END)
             entry.insert(0, text)
             entry.config(fg="#a9a9a9")
@@ -345,6 +402,7 @@ def abrir_seccion_admin(callback_login, db):
                     entrada.config(state="normal")
                     entrada.delete(0, tk.END)
                     entrada.insert(0, str(valores_iniciales[etiqueta]))
+                    entrada._placeholder_active = False
                     if etiqueta in ("Fecha registro", "Fecha pedido"):
                         entrada.config(state="readonly")
             else:
@@ -368,7 +426,7 @@ def abrir_seccion_admin(callback_login, db):
                 y_offset += 24
                 
         def procesar():
-            valores = {clave: entrada.get().strip() for clave, entrada in entradas.items()}
+            valores = {clave: obtener_valor_entrada(entrada) for clave, entrada in entradas.items()}
             try:
                 exito = callback(valores)
             except Exception as e:
@@ -382,7 +440,7 @@ def abrir_seccion_admin(callback_login, db):
 
     def agregar_cliente():
         reglas = {
-            "RUT": ["required"],
+            "RUT": ["required", "rut"],
             "Nombre": ["required"],
             "Email": ["required", "email"],
             "Fecha registro": ["required", "date"],
@@ -414,7 +472,7 @@ def abrir_seccion_admin(callback_login, db):
             return
 
         reglas = {
-            "RUT": ["required"],
+            "RUT": ["required", "rut"],
             "Nombre": ["required"],
             "Email": ["required", "email"],
             "Fecha registro": ["required", "date"],

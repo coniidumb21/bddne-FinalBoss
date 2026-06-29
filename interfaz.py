@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import calendar
 import datetime
 import tkinter as tk
@@ -211,9 +210,9 @@ def abrir_seccion_admin(callback_login, db):
                 for fila in range(6):
                     for col in range(7):
                         if fila == 0 and col < primer_dia:
-                            tk.Label(frame_dias, text="", width=4, bg="#F7F7F7").grid(row=fila, column=col)
+                            tk.Label(frame_dias, text="", width=4, bg="#CAADEB").grid(row=fila, column=col)
                         elif dia_num > dias_mes:
-                            tk.Label(frame_dias, text="", width=4, bg="#F7F7F7").grid(row=fila, column=col)
+                            tk.Label(frame_dias, text="", width=4, bg="#CAADEB").grid(row=fila, column=col)
                         else:
                             boton_dia = tk.Button(frame_dias, text=str(dia_num), width=4, bg="#FFFFFF", relief="flat", command=lambda d=dia_num: seleccionar_fecha(d))
                             boton_dia.grid(row=fila, column=col, padx=1, pady=1)
@@ -254,22 +253,22 @@ def abrir_seccion_admin(callback_login, db):
             calendario.title("Seleccionar fecha")
             calendario.transient(ventana)
             calendario.grab_set()
-            calendario.config(bg="#F7F7F7")
+            calendario.config(bg="#CAADEB")
             calendario.resizable(False, False)
 
-            header = tk.Frame(calendario, bg="#F7F7F7")
+            header = tk.Frame(calendario, bg="#CAADEB")
             header.pack(pady=8)
             tk.Button(header, text="<", command=mes_anterior, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", relief="flat", cursor="hand2").pack(side="left", padx=8)
-            mes_nombre = tk.Label(header, text="", font=("Arial", 10, "bold"), bg="#F7F7F7")
+            mes_nombre = tk.Label(header, text="", font=("Arial", 10, "bold"), bg="#CAADEB")
             mes_nombre.pack(side="left", padx=8)
             tk.Button(header, text=">", command=mes_siguiente, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", relief="flat", cursor="hand2").pack(side="left", padx=8)
 
-            dias_semana = tk.Frame(calendario, bg="#F7F7F7")
+            dias_semana = tk.Frame(calendario, bg="#CAADEB")
             dias_semana.pack()
             for idx, dia in enumerate(["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]):
-                tk.Label(dias_semana, text=dia, width=4, font=("Arial", 9, "bold"), bg="#F7F7F7").grid(row=0, column=idx)
+                tk.Label(dias_semana, text=dia, width=4, font=("Arial", 9, "bold"), bg="#CAADEB").grid(row=0, column=idx)
 
-            frame_dias = tk.Frame(calendario, bg="#F7F7F7")
+            frame_dias = tk.Frame(calendario, bg="#CAADEB")
             frame_dias.pack(padx=8, pady=8)
             actualizar_calendario()
 
@@ -283,7 +282,6 @@ def abrir_seccion_admin(callback_login, db):
         ventana.focus_force()
         entradas = {}
 
-        # Helper: placeholder text for Entry
         def set_placeholder(entry, text):
             default_fg = entry.cget("fg") if entry.cget("fg") else "black"
             had_readonly = (entry.cget('state') == 'readonly')
@@ -310,44 +308,62 @@ def abrir_seccion_admin(callback_login, db):
             entry.bind('<FocusOut>', on_focus_out)
 
         y_offset = 0
-        for i, (etiqueta, ancho) in enumerate(campos):
-            y = 24 + i * 40 + y_offset
-            # keep plain label text; examples will be placeholders inside Entry
-            tk.Label(ventana, text=etiqueta + ":", font=("Arial", 10, "bold"), bg="#F7F7F7").place(x=24, y=y)
-            entry_width = ancho
-            entrada = tk.Entry(ventana, font=("Arial", 10), width=entry_width, bd=1, relief="solid")
-            # Make date fields readonly; they will be filled by the calendar
-            if etiqueta in ("Fecha registro", "Fecha pedido"):
-                entrada.config(state="readonly")
-                entrada._was_readonly = True
+        for i, item in enumerate(campos):
+            # Si el formulario viejo manda 2 datos, lo adaptamos automáticamente. Si manda 4, lo usa normal.
+            if len(item) == 2:
+                etiqueta, ancho = item
+                tipo_campo = "entry"
+                opciones = None
             else:
-                entrada._was_readonly = False
-            entrada.place(x=180, y=y)
-            if valores_iniciales and etiqueta in valores_iniciales:
-                # populate initial values
-                entrada.config(state="normal")
-                entrada.delete(0, tk.END)
-                entrada.insert(0, str(valores_iniciales[etiqueta]))
+                etiqueta, ancho, tipo_campo, opciones = item
+
+            y = 24 + i * 40 + y_offset
+            tk.Label(ventana, text=etiqueta + ":", font=("Arial", 10, "bold"), bg="#F7F7F7").place(x=24, y=y)
+            
+            # Decidimos si pintar una caja de texto o un desplegable
+            if tipo_campo == "combobox":
+                entrada = ttk.Combobox(ventana, font=("Arial", 10), width=ancho - 3, values=opciones, state="readonly")
+                if opciones:
+                    entrada.current(0)  # Selecciona el primero por defecto
+            else:
+                entrada = tk.Entry(ventana, font=("Arial", 10), width=ancho, bd=1, relief="solid")
                 if etiqueta in ("Fecha registro", "Fecha pedido"):
                     entrada.config(state="readonly")
+                    entrada._was_readonly = True
+                else:
+                    entrada._was_readonly = False
+                    
+            entrada.place(x=180, y=y)
+            
+            if valores_iniciales and etiqueta in valores_iniciales:
+                if tipo_campo == "combobox":
+                    entrada.set(str(valores_iniciales[etiqueta]))
+                else:
+                    entrada.config(state="normal")
+                    entrada.delete(0, tk.END)
+                    entrada.insert(0, str(valores_iniciales[etiqueta]))
+                    if etiqueta in ("Fecha registro", "Fecha pedido"):
+                        entrada.config(state="readonly")
             else:
-                # set placeholders for certain fields
-                if etiqueta == "RUT":
-                    set_placeholder(entrada, "12345678-9")
-                elif etiqueta == "Email":
-                    set_placeholder(entrada, "ejemplo@correo.cl")
-                elif etiqueta == "Teléfono":
-                    set_placeholder(entrada, "+569 1234 5678")
-                elif etiqueta in ("Fecha registro", "Fecha pedido"):
-                    set_placeholder(entrada, "AAAA-MM-DD")
+                if tipo_campo != "combobox":
+                    if etiqueta == "RUT":
+                        set_placeholder(entrada, "12345678-9")
+                    elif etiqueta == "Email":
+                        set_placeholder(entrada, "ejemplo@correo.cl")
+                    elif etiqueta == "Teléfono":
+                        set_placeholder(entrada, "+569 1234 5678")
+                    elif etiqueta in ("Fecha registro", "Fecha pedido"):
+                        set_placeholder(entrada, "AAAA-MM-DD")
+                        
             entradas[etiqueta] = entrada
+            
             if etiqueta in ("Fecha registro", "Fecha pedido"):
-                # smaller calendar button so it doesn't overlap the entry
                 tk.Button(ventana, text="Calend.", font=("Arial", 8, "bold"), bg="#FF66B3", fg="white", activebackground="#d80f69", relief="flat", cursor="hand2", command=lambda e=entrada: abrir_calendario(e)).place(x=390, y=y-2, width=70, height=24)
+            
             if etiqueta in ("ID Cliente", "ID Pedido"):
                 tk.Label(ventana, text="En caso de no ingresar un ID, se asignara uno automaticamente", font=("Arial", 8), bg="#F7F7F7", fg="#333333").place(x=180, y=y + 24)
                 y_offset += 24
-
+                
         def procesar():
             valores = {clave: entrada.get().strip() for clave, entrada in entradas.items()}
             try:
@@ -540,27 +556,193 @@ def abrir_seccion_admin(callback_login, db):
             mostrar_mensaje(False, str(e))
 
     def agregar_pedido():
-        reglas = {
-            "ID Pedido": ["required"],
-            "ID Cliente": ["required"],
-            "Fecha pedido": ["required", "date"],
-            "Monto total": ["required", "numeric"]
-        }
+        # Ventana exclusiva para crear pedidos
+        ventana = tk.Toplevel(admin_root)
+        ventana.title("Crear Nuevo Pedido")
+        ventana.geometry("600x580")
+        ventana.config(bg="#CAADEB")
+        ventana.transient(admin_root)
+        ventana.grab_set()
 
-        def callback(valores):
-            validar_campos(valores, reglas)
-            pedido = {
-                "pedido_id": valores["ID Pedido"],
-                "cliente_id": valores["ID Cliente"],
-                "fecha_pedido": valores["Fecha pedido"],
-                "monto_total": int(valores["Monto total"]),
-                "productos": []
+        # --- DATOS BÁSICOS ---
+        # ID Pedido con placeholder explicativo
+        tk.Label(ventana, text="ID Pedido:", bg="#CAADEB", font=("Arial", 9, "bold")).place(x=20, y=20)
+        entry_id = tk.Entry(ventana, width=20, font=("Arial", 10), bd=1, relief="solid", fg="#a9a9a9")
+        entry_id.insert(0, "Se asignará automáticamente")
+        entry_id.place(x=160, y=20)
+
+        def on_id_focus_in(event):
+            if entry_id.get() == "Se asignará automáticamente":
+                entry_id.delete(0, tk.END)
+                entry_id.config(fg="black")
+        def on_id_focus_out(event):
+            if not entry_id.get().strip():
+                entry_id.insert(0, "Se asignará automáticamente")
+                entry_id.config(fg="#a9a9a9")
+        entry_id.bind("<FocusIn>", on_id_focus_in)
+        entry_id.bind("<FocusOut>", on_id_focus_out)
+
+        tk.Label(ventana, text="Cliente:", bg="#CAADEB", font=("Arial", 9, "bold")).place(x=20, y=60)
+        clientes_bd = db.mostrar_clientes()
+        opciones_clientes = [f"{c.get('cliente_id', '')} - {c.get('nombre', '')}" for c in clientes_bd]
+        if not opciones_clientes: opciones_clientes = ["No hay clientes"]
+        combo_cliente = ttk.Combobox(ventana, values=opciones_clientes, width=40, state="readonly")
+        combo_cliente.place(x=160, y=60)
+        if opciones_clientes: combo_cliente.current(0)
+
+        # Fecha con calendario
+        tk.Label(ventana, text="Fecha pedido:", bg="#CAADEB", font=("Arial", 9, "bold")).place(x=20, y=100)
+        entry_fecha = tk.Entry(ventana, width=18, font=("Arial", 10), bd=1, relief="solid", state="readonly")
+        entry_fecha.config(state="normal")
+        entry_fecha.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
+        entry_fecha.config(state="readonly")
+        entry_fecha.place(x=160, y=100)
+
+        def abrir_calendario_pedido():
+            def actualizar_cal():
+                for widget in frame_dias.winfo_children():
+                    widget.destroy()
+                mes_nombre.config(text=f"{calendar.month_name[mes_actual[0]]} {anio_actual[0]}")
+                primer_dia, dias_mes = calendar.monthrange(anio_actual[0], mes_actual[0])
+                dia_num = 1
+                for fila in range(6):
+                    for col in range(7):
+                        if fila == 0 and col < primer_dia:
+                            tk.Label(frame_dias, text="", width=4, bg="#CAADEB").grid(row=fila, column=col)
+                        elif dia_num > dias_mes:
+                            tk.Label(frame_dias, text="", width=4, bg="#CAADEB").grid(row=fila, column=col)
+                        else:
+                            tk.Button(frame_dias, text=str(dia_num), width=4, bg="#CAADEB", relief="flat",
+                                      command=lambda d=dia_num: seleccionar_dia(d)).grid(row=fila, column=col, padx=1, pady=1)
+                            dia_num += 1
+
+            def seleccionar_dia(dia):
+                fecha = f"{anio_actual[0]:04d}-{mes_actual[0]:02d}-{dia:02d}"
+                entry_fecha.config(state="normal")
+                entry_fecha.delete(0, tk.END)
+                entry_fecha.insert(0, fecha)
+                entry_fecha.config(state="readonly")
+                cal_win.destroy()
+
+            def mes_anterior():
+                if mes_actual[0] == 1: mes_actual[0] = 12; anio_actual[0] -= 1
+                else: mes_actual[0] -= 1
+                actualizar_cal()
+
+            def mes_siguiente():
+                if mes_actual[0] == 12: mes_actual[0] = 1; anio_actual[0] += 1
+                else: mes_actual[0] += 1
+                actualizar_cal()
+
+            try:
+                fecha_obj = datetime.datetime.strptime(entry_fecha.get().strip(), "%Y-%m-%d").date()
+            except Exception:
+                fecha_obj = datetime.date.today()
+            anio_actual = [fecha_obj.year]
+            mes_actual = [fecha_obj.month]
+
+            cal_win = tk.Toplevel(ventana)
+            cal_win.title("Seleccionar fecha")
+            cal_win.transient(ventana)
+            cal_win.grab_set()
+            cal_win.config(bg="#CAADEB")
+            cal_win.resizable(False, False)
+
+            header = tk.Frame(cal_win, bg="#CAADEB")
+            header.pack(pady=8)
+            tk.Button(header, text="<", command=mes_anterior, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", relief="flat", cursor="hand2").pack(side="left", padx=8)
+            mes_nombre = tk.Label(header, text="", font=("Arial", 10, "bold"), bg="#CAADEB")
+            mes_nombre.pack(side="left", padx=8)
+            tk.Button(header, text=">", command=mes_siguiente, font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", relief="flat", cursor="hand2").pack(side="left", padx=8)
+
+            dias_semana = tk.Frame(cal_win, bg="#CAADEB")
+            dias_semana.pack()
+            for idx, dia in enumerate(["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]):
+                tk.Label(dias_semana, text=dia, width=4, font=("Arial", 9, "bold"), bg="#CAADEB").grid(row=0, column=idx)
+
+            frame_dias = tk.Frame(cal_win, bg="#CAADEB")
+            frame_dias.pack(padx=8, pady=8)
+            actualizar_cal()
+
+        tk.Button(ventana, text="📅 Calendario", font=("Arial", 8, "bold"), bg="#FF66B3", fg="white",
+                  activebackground="#d80f69", relief="flat", cursor="hand2",
+                  command=abrir_calendario_pedido).place(x=340, y=98, width=100, height=24)
+
+        # --- CARRITO ---
+        tk.Label(ventana, text="─── AÑADIR PRODUCTOS ───", bg="#CAADEB", font=("Arial", 10, "bold"), fg="#d80f69").place(x=160, y=140)
+        tk.Label(ventana, text="Producto:", bg="#CAADEB", font=("Arial", 9, "bold")).place(x=20, y=175)
+        productos_bd = db.mostrar_productos()
+        opciones_productos = [f"{p.get('producto_id', '')} - {p.get('nombre', '')} - ${p.get('precio', 0)}" for p in productos_bd]
+        combo_producto = ttk.Combobox(ventana, values=opciones_productos, width=38, state="readonly")
+        combo_producto.place(x=90, y=175)
+
+        tk.Label(ventana, text="Cant:", bg="#CAADEB", font=("Arial", 9, "bold")).place(x=430, y=175)
+        entry_cant = tk.Entry(ventana, width=5, font=("Arial", 10), bd=1, relief="solid")
+        entry_cant.insert(0, "1")
+        entry_cant.place(x=470, y=175)
+
+        carrito_compras = []
+        tabla_carrito = ttk.Treeview(ventana, columns=("ID", "Nombre", "Cant", "Subtotal"), show="headings", height=6)
+        for col in ("ID", "Nombre", "Cant", "Subtotal"):
+            tabla_carrito.heading(col, text=col)
+            tabla_carrito.column(col, width=120, anchor="center")
+        tabla_carrito.place(x=20, y=255, width=560)
+        lbl_total = tk.Label(ventana, text="Total Pedido: $0", bg="#CAADEB", font=("Arial", 12, "bold"), fg="#d80f69")
+        lbl_total.place(x=350, y=430)
+
+        def agregar_al_carrito():
+            seleccion = combo_producto.get()
+            if not seleccion: return
+            partes = seleccion.split(" - ")
+            p_id, p_nombre, p_precio = partes[0], partes[1], int(partes[2].replace("$", ""))
+            cantidad = int(entry_cant.get())
+            carrito_compras.append({"producto_id": p_id, "nombre": p_nombre, "cantidad": cantidad, "precio": p_precio})
+            tabla_carrito.insert("", "end", values=(p_id, p_nombre, cantidad, f"${p_precio * cantidad}"))
+            lbl_total.config(text=f"Total: ${sum(i['precio'] * i['cantidad'] for i in carrito_compras)}")
+
+        tk.Button(ventana, text="+ Añadir al carrito", command=agregar_al_carrito,
+                  font=("Arial", 9, "bold"), bg="#FF66B3", fg="white", activebackground="#d80f69",
+                  relief="flat", cursor="hand2").place(x=180, y=210, width=150, height=28)
+
+        def guardar_todo_el_pedido():
+            if not carrito_compras: return
+            
+            # Recolectar valores y aplicar tus reglas
+            id_valor = entry_id.get().strip()
+            if id_valor == "Se asignará automáticamente":
+                id_valor = ""
+            valores = {
+                "ID Pedido": id_valor,
+                "Cliente": combo_cliente.get().strip(),
+                "Fecha pedido": entry_fecha.get().strip(),
+                "Monto total": str(sum(i['precio'] * i['cantidad'] for i in carrito_compras))
             }
-            db.insertar_pedido(pedido)
-            mostrar_mensaje(True, "Pedido agregado correctamente")
-            return True
+            
+            # Reglas que ya tenías definidas en otros formularios
+            reglas = {
+                "ID Pedido": [],
+                "Cliente": ["required"],
+                "Fecha pedido": ["required", "date"],
+                "Monto total": ["required", "numeric"]
+            }
+            
+            try:
+                validar_campos(valores, reglas)
+                pedido_final = {
+                    "pedido_id": valores["ID Pedido"],
+                    "cliente_id": valores["Cliente"].split(" - ")[0].strip(),
+                    "fecha_pedido": valores["Fecha pedido"],
+                    "monto_total": int(valores["Monto total"]),
+                    "productos": carrito_compras
+                }
+                db.insertar_pedido(pedido_final)
+                mostrar_mensaje(True, "Pedido creado exitosamente", parent=ventana)
+                ventana.destroy()
+                mostrar_tabla("Pedidos")
+            except Exception as e:
+                mostrar_mensaje(False, str(e), parent=ventana)
 
-        abrir_formulario_campos("Agregar pedido", [("ID Pedido", 18), ("ID Cliente", 18), ("Fecha pedido", 18), ("Monto total", 18)], callback)
+        tk.Button(ventana, text="Guardar Pedido", font=("Arial", 10, "bold"), bg="#FF66B3", fg="white", command=guardar_todo_el_pedido).place(x=200, y=510, width=200, height=35)
 
     def editar_pedido():
         seleccion = obtener_seleccion()

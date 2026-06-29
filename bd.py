@@ -3,7 +3,7 @@ from pymongo import MongoClient
 class bd:
     def __init__(self):
         self.cliente = MongoClient("mongodb://localhost:27017")
-        self.db = self.cliente["comercioTech"]
+        self.db = self.cliente["comerciotech"]
         self.admin = self.db["admin"]
         self.clientes = self.db["clientes"]
         self.productos = self.db["productos"]
@@ -16,7 +16,7 @@ class bd:
     def verificar_admin(self, usuario, contrasenia):
         admin = self.buscar_admin_por_usuario(usuario)
         return admin is not None and admin.get("contrasenia") == contrasenia
-        
+            
     # CRUD CLIENTES
 
     def obtener_siguiente_cliente_id(self):
@@ -92,26 +92,39 @@ class bd:
         )
         
     # CRUD PEDIDOS
+    # CRUD PEDIDOS
 
     def insertar_pedido(self, pedido):
-        # asignar pedido_id si no viene
-        if "pedido_id" not in pedido or pedido["pedido_id"] in (None, ""):
+        # Si el usuario dejó el ID en blanco, generamos uno automáticamente
+        if "pedido_id" not in pedido or str(pedido["pedido_id"]).strip() == "":
             pedido["pedido_id"] = self.obtener_siguiente_pedido_id()
-        else:
-            try:
-                pedido["pedido_id"] = int(pedido["pedido_id"])
-            except (ValueError, TypeError):
-                pedido["pedido_id"] = self.obtener_siguiente_pedido_id()
+        
+        # Insertamos directamente, sin forzar a que sea un número
         self.pedidos.insert_one(pedido)
 
     def obtener_siguiente_pedido_id(self):
-        ultimo_pedido = self.pedidos.find_one(sort=[("pedido_id", -1)])
-        if not ultimo_pedido or "pedido_id" not in ultimo_pedido:
-            return 1
-        try:
-            return int(ultimo_pedido["pedido_id"]) + 1
-        except (ValueError, TypeError):
-            return 1
+        # Traemos todos los pedidos para calcular el siguiente número
+        pedidos = list(self.pedidos.find({}, {"pedido_id": 1}))
+        max_num = 0
+        
+        for p in pedidos:
+            pid = str(p.get("pedido_id", ""))
+            
+            # Verificamos si empieza con 'P' y lo demás es número
+            if pid.startswith("P") and pid[1:].isdigit():
+                num = int(pid[1:])
+                if num > max_num:
+                    max_num = num
+                    
+            # Por si tienes números antiguos guardados (ej: 1, 2, 3)
+            elif pid.isdigit():
+                num = int(pid)
+                if num > max_num:
+                    max_num = num
+                    
+        nuevo_num = max_num + 1
+        # Retorna el formato P seguido de 3 dígitos (ej: P001, P002, P010)
+        return f"P{nuevo_num:03d}"
 
     def mostrar_pedidos(self):
         return list(self.pedidos.find())

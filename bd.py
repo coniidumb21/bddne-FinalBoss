@@ -3,7 +3,7 @@ from pymongo import MongoClient
 class bd:
     def __init__(self):
         self.cliente = MongoClient("mongodb://localhost:27017")
-        self.db = self.cliente["comerciotech"]
+        self.db = self.cliente["comercioTech"]
         self.admin = self.db["admin"]
         self.clientes = self.db["clientes"]
         self.productos = self.db["productos"]
@@ -20,13 +20,18 @@ class bd:
     # CRUD CLIENTES
 
     def obtener_siguiente_cliente_id(self):
+        # Busca todos los clientes y extrae el número máximo del formato C00X
         ultimo_cliente = self.clientes.find_one(sort=[("cliente_id", -1)])
-        if not ultimo_cliente or "cliente_id" not in ultimo_cliente:
-            return 1
-        try:
-            return int(ultimo_cliente["cliente_id"]) + 1
-        except (ValueError, TypeError):
-            return 1
+        max_num = 0
+        
+        if ultimo_cliente and "cliente_id" in ultimo_cliente:
+            cliente_id = str(ultimo_cliente["cliente_id"])
+            if cliente_id.startswith("C") and cliente_id[1:].isdigit():
+                max_num = int(cliente_id[1:])
+        
+        nuevo_num = max_num + 1
+        # Retorna el formato C seguido de 3 dígitos (ej: C001, C002, C010)
+        return f"C{nuevo_num:03d}"
 
     def insertar_cliente(self, cliente):
         if "cliente_id" not in cliente or cliente["cliente_id"] in (None, ""):
@@ -68,7 +73,31 @@ class bd:
         
     # CRUD PRODUCTOS
 
+    def obtener_siguiente_producto_id(self):
+        # Busca todos los productos y extrae el número máximo
+        ultimo_producto = self.productos.find_one(sort=[("producto_id", -1)])
+        max_num = 100  # Comenzamos en 100, el siguiente será 101
+        
+        if ultimo_producto and "producto_id" in ultimo_producto:
+            try:
+                product_id = int(ultimo_producto["producto_id"])
+                if product_id > max_num:
+                    max_num = product_id
+            except (ValueError, TypeError):
+                pass
+        
+        return max_num + 1
+
     def insertar_producto(self, producto):
+        # Si no tiene producto_id o está vacío, generamos uno automáticamente
+        if "producto_id" not in producto or producto["producto_id"] in (None, ""):
+            producto["producto_id"] = self.obtener_siguiente_producto_id()
+        else:
+            try:
+                producto["producto_id"] = int(producto["producto_id"])
+            except (ValueError, TypeError):
+                producto["producto_id"] = self.obtener_siguiente_producto_id()
+        
         self.productos.insert_one(producto)
 
     def mostrar_productos(self):
